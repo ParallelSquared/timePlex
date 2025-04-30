@@ -1,6 +1,5 @@
----
----
----
+
+![Logo](timePlex_figure.png)
 
 ## Article: [Increasing mass spectrometry throughput using time-encoded sample multiplexing (Derks et al, 2025)](https://www.biorxiv.org/)
 
@@ -50,7 +49,7 @@ Code:
 
 </h2>
 
-[JMod](https://github.com/ParallelSquared/jmod) was used for searching all data. The exact version of JMod which was used for searching these raw data is available for download [here](https://github.com/ParallelSquared/jmod).
+[JMod](https://github.com/ParallelSquared/jmod) was used for searching all data. The exact version of JMod which was used for searching these raw data is available for download [here](https://github.com/ParallelSquared/timePlex/blob/main/JMod_timePlex.zip).
 
 The [{targets} R package](https://books.ropensci.org/targets/) was used to ensure repeatability of our downstream analyses. R scripts corresponding to benchmarking and single-cell analyses can be found in the ["Code" folder of our Github](https://github.com/SlavovLab/Single-nucleus-proteomics/tree/main/Code). The raw data, processed data, libraries, and meta data required to repeat these analyses can be found at our MassIVE repository: [MSV000097736](https://massive.ucsd.edu/ProteoSAFe/dataset.jsp?task=7193ea0d007741c680f22ec005718e2b)
 
