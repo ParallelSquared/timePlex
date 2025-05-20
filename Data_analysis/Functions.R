@@ -2450,6 +2450,7 @@ pD_weighted_PCA_timePlex <- function(dat){
   return(dat_fin)
 }
 
+
 extra_MS1_mzml_v2 <- function(mzml_file, target_mz_first = 534.3383, z=2, 
                               mztol=0.0075, iso=14, rt_min=31.6, rt_max=40.6,
                               tp1=31.93026,
@@ -2458,8 +2459,15 @@ extra_MS1_mzml_v2 <- function(mzml_file, target_mz_first = 534.3383, z=2,
                               target_mz_1st = 534.3383,
                               target_mz_2nd = 536.3418,
                               target_mz_3rd = 538.3453,
+                              target_mz_4th = NA,
+                              target_mz_5th = NA,
+                              target_mz_6th = NA,
+                              target_mz_7th = NA,
+                              target_mz_8th = NA,
+                              target_mz_9th = NA,
+                              pD_plex = 3,
                               ppm=10,
-                              extra=""){
+                              extra="",mycolor="#e8a792",SC=F){
   
   mzdata <- openMSfile(mzml_file)
   hdr <- header(mzdata)
@@ -2503,9 +2511,43 @@ extra_MS1_mzml_v2 <- function(mzml_file, target_mz_first = 534.3383, z=2,
     ggsave(paste0(extra,"_TIC_xaxis.pdf"),height=2.6,width=3.6*1.7)
     
     
+    ggplot(ms1_intensity_data, aes(y = (TotalIntensity), x = RT/60)) +  
+      geom_rect(data = rect_data, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+                fill = "mediumpurple1", alpha = 1, inherit.aes = FALSE) +  
+      geom_line(color = "black") +
+      labs(
+        y = "TIC",
+        x = "Retention Time (minutes)") +
+      theme_classic() +
+      coord_flip()
+    ggsave(paste0(extra,"_TIC_noLog.pdf"),width=3,height=3.6*1.5)
+    
+    ggplot(ms1_intensity_data, aes(y = (TotalIntensity), x = RT/60)) +  
+      geom_rect(data = rect_data, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+                fill = "mediumpurple1", alpha = 1, inherit.aes = FALSE) + 
+      geom_line(color = "black") +
+      labs(
+        y = "TIC",
+        x = "Retention Time (minutes)") +
+      theme_classic()
+    ggsave(paste0(extra,"_TIC_xaxis_noLog.pdf"),height=2.6,width=3.6*1.7)
+    
+    
   } 
   
-  target_mz_values <- c(target_mz_1st, target_mz_2nd, target_mz_3rd)
+  if(pD_plex==3){
+    target_mz_values <- c(target_mz_1st, target_mz_2nd, target_mz_3rd)
+  } else{
+    target_mz_values <- c(target_mz_1st, target_mz_2nd, target_mz_3rd, target_mz_4th,
+                          target_mz_5th,
+                          target_mz_6th,
+                          target_mz_7th,
+                          target_mz_8th,
+                          target_mz_9th)
+    
+  }
+  
+  
   mz_tolerance <- target_mz_2nd*ppm/1000000
   
   charge <- z  #Charge state
@@ -2514,7 +2556,7 @@ extra_MS1_mzml_v2 <- function(mzml_file, target_mz_first = 534.3383, z=2,
     return((mono_mz) + (0:num_isotopes * 1.00335 / charge))
   }
   
-  isotope_mz_list <- lapply(target_mz_values, compute_isotopes, charge = charge)
+  isotope_mz_list <- lapply(target_mz_values, compute_isotopes, charge = charge,num_isotopes = 1)
   
   extract_binned_signal <- function(scan, isotope_mz_set, mzdata, mz_tolerance) {
     peaks <- peaks(mzdata, scan)
@@ -2555,10 +2597,28 @@ extra_MS1_mzml_v2 <- function(mzml_file, target_mz_first = 534.3383, z=2,
   
   binned_long$timePlex <- factor(binned_long$timePlex, levels = c("3", "2", "1"))
   #binned_long
-  df_map <- data.frame("mapper" = c(paste0("sum_",target_mz_1st,"_1"), paste0("sum_",target_mz_2nd,"_1"), paste0("sum_",target_mz_3rd,"_1"),
-                                    paste0("sum_",target_mz_1st,"_2"), paste0("sum_",target_mz_2nd,"_2"), paste0("sum_",target_mz_3rd,"_2"),
-                                    paste0("sum_",target_mz_1st,"_3"), paste0("sum_",target_mz_2nd,"_3"), paste0("sum_",target_mz_3rd,"_3")),
-                       "celltype" = c("U937","K562","K562","U937","K562","U937","K562","U937","U937"))
+  
+  if(pD_plex==3){
+    df_map <- data.frame("mapper" = c(paste0("sum_",target_mz_1st,"_1"), paste0("sum_",target_mz_2nd,"_1"), paste0("sum_",target_mz_3rd,"_1"),
+                                      paste0("sum_",target_mz_1st,"_2"), paste0("sum_",target_mz_2nd,"_2"), paste0("sum_",target_mz_3rd,"_2"),
+                                      paste0("sum_",target_mz_1st,"_3"), paste0("sum_",target_mz_2nd,"_3"), paste0("sum_",target_mz_3rd,"_3")),
+                         "celltype" = c("U937","K562","K562","U937","K562","U937","K562","U937","U937"))
+   } else{
+    df_map <- data.frame("mapper" = c(paste0("sum_",target_mz_1st,"_1"), paste0("sum_",target_mz_2nd,"_1"), paste0("sum_",target_mz_3rd,"_1"),
+                                      paste0("sum_",target_mz_4th,"_1"), paste0("sum_",target_mz_5th,"_1"), paste0("sum_",target_mz_6th,"_1"),
+                                      paste0("sum_",target_mz_7th,"_1"), paste0("sum_",target_mz_8th,"_1"), paste0("sum_",target_mz_9th,"_1"),
+                                      
+                                      paste0("sum_",target_mz_1st,"_2"), paste0("sum_",target_mz_2nd,"_2"), paste0("sum_",target_mz_3rd,"_2"),
+                                      paste0("sum_",target_mz_4th,"_2"), paste0("sum_",target_mz_5th,"_2"), paste0("sum_",target_mz_6th,"_2"),
+                                      paste0("sum_",target_mz_7th,"_2"), paste0("sum_",target_mz_8th,"_2"), paste0("sum_",target_mz_9th,"_2"),
+                                      
+                                      paste0("sum_",target_mz_1st,"_3"), paste0("sum_",target_mz_2nd,"_3"), paste0("sum_",target_mz_3rd,"_3"),
+                                      paste0("sum_",target_mz_4th,"_3"), paste0("sum_",target_mz_5th,"_3"), paste0("sum_",target_mz_6th,"_3"),
+                                      paste0("sum_",target_mz_7th,"_3"), paste0("sum_",target_mz_8th,"_3"), paste0("sum_",target_mz_9th,"_3")),
+                         "celltype" = c("4x","1x","2x","3x","4x","3x","1x","2x","3x",
+                                        "4x","1x","2x","3x","4x","3x","1x","2x","3x",
+                                        "4x","1x","2x","3x","4x","3x","1x","2x","3x"))
+   }
   
   binned_long$mapper <- paste0(binned_long$mass_category,"_",binned_long$timePlex)
   binned_long <- binned_long %>% left_join(df_map, by =c("mapper"="mapper"))
@@ -2613,17 +2673,45 @@ extra_MS1_mzml_v2 <- function(mzml_file, target_mz_first = 534.3383, z=2,
   binned_long_smooth$y_interpolated[binned_long_smooth$y_interpolated<0] <- 0
   binned_long_smooth$timePlex <- factor(binned_long_smooth$timePlex, levels = c("1", "2", "3"))
   
-  ggplot(binned_long_smooth, 
-         aes(x = retention_time, y = y_interpolated, group = mass_category, 
-             color = celltype))+
+  if(SC==T){
+    ggplot(binned_long_smooth, 
+           aes(x = retention_time, y = y_interpolated, group = mass_category, 
+               color = celltype))+
+      geom_hline(yintercept = 0, size = 1) +
+      facet_grid(cols = vars(timePlex),rows=vars(mass_category), scales = "free") +
+      geom_point(data = binned_long_smooth %>% dplyr::filter(interpolated == FALSE), 
+                 aes(y = y_interpolated), color = "black", size = 2,alpha=0.9) +  
+      geom_line(size = 1.3) +
+      scale_color_manual(values=c("#e29578","#006d77"))+
+      labs(x = "Retention Time (min)", y = "Intensity") +
+      scale_alpha(range = c(0.4, 1)) +  
+      theme_bw() +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1,size = 14),
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank(),
+            strip.text.y = element_text(size = 14),
+            strip.text.x = element_text(size = 14),
+            axis.title.x = element_text(size = 18),
+            axis.title.y = element_text(size = 18),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            panel.spacing.x = unit(1.3, "lines"),
+            legend.position = "none") +
+      ggsave(paste0("Smoothed_Summed_Isotope_Signals_",extra,".pdf"), width = 4, height = 5)
+  }
+  
+  
+  # 
+  ggplot(binned_long_smooth,
+         aes(x = retention_time, y = y_interpolated, group = mass_category))+#color = celltype))+
     geom_hline(yintercept = 0, size = 1) +
-    facet_grid(cols = vars(timePlex),rows=vars(mass_category), scales = "free") +
-    geom_point(data = binned_long_smooth %>% dplyr::filter(interpolated == FALSE), 
-               aes(y = y_interpolated), color = "black", size = 2,alpha=0.9) +  
-    geom_line(size = 1.3) +
-    scale_color_manual(values=c("#e29578","#006d77"))+
+    facet_grid(cols = vars(timePlex),rows=vars(mass_category), scales = "free_x") +
+    geom_point(data = binned_long_smooth %>% dplyr::filter(interpolated == FALSE),
+               aes(y = y_interpolated), color = "black", size = 2,alpha=0.9) +
+    geom_line(size = 1.3,color=mycolor) +
+    #scale_color_manual(values=c("#ec008c", "#2bb673","#00aeef", "#fbb040"))+
     labs(x = "Retention Time (min)", y = "Intensity") +
-    scale_alpha(range = c(0.4, 1)) +  
+    scale_alpha(range = c(0.4, 1)) +
     theme_bw() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1,size = 14),
           axis.text.y = element_blank(),
@@ -2635,10 +2723,48 @@ extra_MS1_mzml_v2 <- function(mzml_file, target_mz_first = 534.3383, z=2,
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           panel.spacing.x = unit(1.3, "lines"),
-          legend.position = "none")
-  ggsave(paste0("Smoothed_Summed_Isotope_Signals_",extra,".pdf"), width = 4, height = 5)
+          legend.position = "none")#,
+  ggsave(paste0("Smoothed_Summed_Isotope_Signals_raw",extra,".pdf"), width = 4, height = 12)
   
+  
+  binned_long_smooth_tp_norm <- binned_long_smooth %>% dplyr::group_by(timePlex) %>%
+    dplyr::mutate("tp_norm" = y_interpolated/max(y_interpolated,na.rm=T)) %>% 
+    dplyr::group_by(timePlex,mass_category) %>%
+    dplyr::mutate("AUC" = sum(tp_norm,na.rm=T)) %>% ungroup() %>%
+    dplyr::group_by(timePlex) %>%
+    dplyr::mutate(AUC_rel = AUC/min(AUC)) %>%
+    ungroup()
+  
+  binned_long_smooth_tp_norm_dis <- binned_long_smooth_tp_norm %>% dplyr::distinct(timePlex, mass_category,.keep_all = T)
+  
+  
+  ggplot(binned_long_smooth_tp_norm,
+         aes(x = retention_time, y = tp_norm, group = mass_category,color = celltype))+
+    geom_hline(yintercept = 0, size = 1) +
+    facet_grid(cols = vars(timePlex),rows=vars(mass_category), scales = "free_x") +
+    geom_point(data = binned_long_smooth_tp_norm %>% dplyr::filter(interpolated == FALSE),
+               aes(y = tp_norm), color = "black", size = 2,alpha=0.9) +
+    geom_line(size = 1.3, color=mycolor) +
+    #scale_color_manual(values=c("#ec008c", "#2bb673","#00aeef", "#fbb040"))+
+    labs(x = "Retention Time (min)", y = "Intensity") +
+    scale_alpha(range = c(0.4, 1)) +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1,size = 14),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          strip.text.y = element_text(size = 14),
+          strip.text.x = element_text(size = 14),
+          axis.title.x = element_text(size = 18),
+          axis.title.y = element_text(size = 18),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.spacing.x = unit(1.3, "lines"),
+          legend.position = "none")#,
+  
+  ggsave(paste0("Smoothed_Summed_Isotope_Signals_normalized",extra,".pdf"), width = 4, height = 12)
+    
 }
+
 
 
 cor_bulk_SC <- function(BC_MLFQ, meta_path){
