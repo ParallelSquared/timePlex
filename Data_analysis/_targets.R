@@ -25,7 +25,6 @@ lib_path <- "singlefragment_HY_03132025.tsv"
 
 ############ Single cell
 sc_fpath <- "SC_03262025"
-
 SC_mzml_fpath <- "JD0439.mzML"
 
 ############ Carryover during timePlex loadings
@@ -33,14 +32,14 @@ carryover_fpath <- "Checking_columnCarryover"
 
 ############ META
 meta_SC <- "timeplex_SCmeta_03192025.tsv"
-meta_path <- "timeplex_meta_03152025.tsv"
+meta_path <- "timeplex_meta_05172025.tsv"
 
 IO_features_fpath <- "Features_IO"
 uPAC_features_fpath <- "Features_uPAC"
   
 ############ LIB
 lib_LF_arabidopsis_path <- "LF_HY_Arab_top12_v1p9.tsv"
-
+lib_path_PSMtag_1 <- "LF_psmtag_lib.tsv"  #only used for annotating the JMod output
 
 ######### missing species data (H, HY, HY)
 missingspec_fpath <- "MissingSpec_03262025"
@@ -56,6 +55,8 @@ single_column_fpath <- "Single_column_03262025"
 dat_mTRAQ_lib <- "mTRAQ_LF_int"
 dat_LF_lib <- "LF_mTRAQ_int"
 
+##### raw data for 9-plexDIA and 3-timePlex for plotting XICs
+mzML_fpath_3tP_9pD <- "JD0582_re.mzML"
 
 
 source_targets <- function(path) {
@@ -64,7 +65,8 @@ source_targets <- function(path) {
 
 targets_list <- c(
   source_targets("Benchmarking_targets.R"),
-  source_targets("SingleCell_targets.R")
+  source_targets("SingleCell_targets.R"),
+  source_targets("9plexDIAx3timePlex_targets.R")
 )
 
 targets_list <- unlist(targets_list, recursive = FALSE)
