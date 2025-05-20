@@ -3245,3 +3245,477 @@ quant <- function(dat, numerator = "A", denominator = "B", exp_FC = 2,
                                                           color = "black", face = "bold", size = 14))
   return(quantplot)
 }
+
+tp_coverage_3x9 <- function(dat,extra="", use_best_channel = F, filter_level=0.01, plex3x9=F){
+  
+  if(use_best_channel==T){
+    dat <- dat %>% dplyr::filter(BestChannel_Qvalue<filter_level) %>% dplyr::filter(Qvalue < 0.2)
+  } else{
+    dat <- dat %>% dplyr::filter(Qvalue<filter_level)
+  }
+  
+  if(plex3x9==T){
+    dat <- dat %>%
+      dplyr::mutate(Type = case_when(
+        timePlex == TRUE & Label != "LF" ~ "9-plexDIA\n3-timePlex",
+        timePlex == FALSE & Label != "LF" ~ "9-plexDIA",
+        TRUE ~ "LF\nNo-plex"
+      ))
+  } else{
+    dat <- dat %>%
+      dplyr::mutate(Type = case_when(
+        timePlex == TRUE & Label == "LF" ~ "LF\n3-timePlex",
+        timePlex == TRUE & Label != "LF" ~ "3-plexDIA\n3-timePlex",
+        timePlex == FALSE & Label != "LF" ~ "3-plexDIA",
+        TRUE ~ "LF\nNo-plex"
+      ))
+  }
+  
+  dat <- dat[dat$Repeatability ==F,]
+  dat_keep <- dat
+  
+  
+  
+  dat$Label <- paste0(dat$Label,"_",dat$time_channel)
+  
+  dat_counts <- dat %>%
+    dplyr::group_by(Sample, Run, Column, Amount, Label, Type) %>%
+    dplyr::count() %>%
+    dplyr::ungroup()
+  
+
+  if(plex3x9==T){
+    dat_counts$Sample <- factor(dat_counts$Sample, levels = c("J", "K", "L","M"))
+  } else{
+    dat_counts$Sample <- factor(dat_counts$Sample, levels = c("A", "B", "C"))
+  }
+  
+  
+  # Compute mean and standard error
+  dat_summary <- dat_counts %>%
+    dplyr::group_by(Sample, Label, Amount, Type) %>%
+    dplyr::summarise(
+      mean_count = mean(n, na.rm = TRUE),
+      se = sd(n, na.rm = TRUE) / sqrt(n()),
+      .groups = "drop"
+    ) %>% dplyr::ungroup()
+  
+  dat_summary <- dat_summary %>%
+    dplyr::arrange(desc(Sample), Type) %>%
+    
+    dplyr::group_by(Type) %>%
+    dplyr::mutate(
+      stacked_mean = cumsum(mean_count)) %>% dplyr::ungroup() %>%
+    dplyr::group_by(Label, Sample, Type) %>%
+    dplyr::mutate(stacked_mean = ifelse(Type=="LF\nNo-plex", mean_count,stacked_mean))%>%
+    dplyr::mutate(
+      er_max = stacked_mean + se,
+      er_min = stacked_mean - se
+    ) %>%
+    dplyr::ungroup()
+  
+  df_text <- dat_summary %>%
+    dplyr::group_by(Type, Sample,Label) %>%
+    dplyr::summarise(
+      text_value = round(max(er_max) - max(se)),
+      text_pos = max(er_max) + 2000
+    )
+  
+  my_colors <- c("#ec008c", "#2bb673","#00aeef", "#fbb040")
+  
+  ggplot(dat_summary, aes(x = Type, y = mean_count, fill = Sample)) +
+    scale_x_discrete(limits = c("LF\nNo-plex","9-plexDIA", "9-plexDIA\n3-timePlex")) +
+    
+    
+    geom_bar(data = dat_summary %>% dplyr::filter(Type == "9-plexDIA\n3-timePlex"),
+             aes(x = Type, y = mean_count, fill = Sample), alpha=0.8,
+             stat = "identity", color = "black", width = 0.35, alpha = 1) +
+
+    geom_bar(data = dat_summary %>% dplyr::filter(Type == "9-plexDIA"),
+             aes(x = Type, y = mean_count, fill = Sample), alpha=0.8,
+             stat = "identity", color = "black", width = 0.35, alpha = 1) +
+    
+    geom_bar(data = dat_summary %>% dplyr::filter(Type == "LF\nNo-plex"),
+             aes(x = Type, y = mean_count, fill = Sample), alpha=0.8,
+             stat = "identity", position = position_dodge(width = 1.17),
+             color = "black", width = 1, alpha = 1) +
+ 
+    scale_y_continuous(labels = comma) +
+    
+    geom_errorbar(data = dat_summary %>% dplyr::filter(Type %in% c("9-plexDIA\n3-timePlex", "9-plexDIA")),
+                  aes(ymin = er_min, ymax = er_max),
+                  width = 0.18, size = 0.4) +
+    
+    geom_errorbar(data = dat_summary %>% dplyr::filter(Type == "LF\nNo-plex"),
+                  aes(ymin = er_min, ymax = er_max),
+                  width = 0.5, size = 0.4,
+                  position = position_dodge(1.17)) +
+    
+    scale_fill_manual(values = my_colors) +
+    theme_classic() +
+    
+    labs(y = "Precursors data points / Run", x = "", fill = "Samples") +
+    
+    theme(axis.text.x = element_text(size = 14, color = "black", face = "bold"),
+          axis.text.y = element_text(size = 12),
+          axis.title.y = element_text(size = 16),
+          legend.text = element_text(size = 12),
+          legend.title = element_text(size = 12),
+          legend.position = c(0.16, 0.9),
+          legend.direction = "horizontal",
+          legend.spacing.x = unit(1.0, 'line')) +
+    
+    guides(fill = guide_legend(override.aes = list(alpha = 0.7),
+                               title = "Samples",
+                               label.position = "bottom",
+                               title.position = "top", title.vjust = 1, title.hjust = 0.5)) +
+    
+    geom_text(data = df_text %>% dplyr::filter(Type %in% c("9-plexDIA\n3-timePlex", "9-plexDIA")), 
+              aes(x = Type, y = text_pos, label = comma(text_value)),
+              col = 'black', size = 3) +
+    
+    geom_text(data = df_text %>% dplyr::filter(Type == "LF\nNo-plex"), 
+              aes(x = Type, y = text_pos, label = comma(text_value)),
+              col = 'black', size = 3,
+              width = 0.5, size = 0.4,
+              position = position_dodge(1.17))
+    
+  
+  ggsave(paste0(extra,"_","Prec_coverage_","BestChannel_",use_best_channel,".pdf"),width=5.5,height=5.5)
+  
+  
+  
+  ##################
+
+  dat_counts <- dat %>% dplyr::filter(Protein_Qvalue<filter_level) %>% dplyr::distinct(Sample, Run, Column, Amount, Label, Type, prot_original,.keep_all=T) %>% 
+    dplyr::group_by(Sample, Run, Column, Amount, Label, Type) %>%
+    dplyr::count() %>% dplyr::ungroup()
+  
+  dat_summary <- dat_counts %>%
+    dplyr::group_by(Sample, Label, Amount, Type) %>%
+    dplyr::summarise(
+      mean_count = mean(n, na.rm = TRUE),
+      se = sd(n, na.rm = TRUE) / sqrt(n()),
+      .groups = "drop"
+    ) %>% dplyr::ungroup()
+  
+  dat_summary <- dat_summary %>%
+    dplyr::arrange(desc(Sample), Type) %>%
+    dplyr::group_by(Type) %>%
+    dplyr::mutate(
+      stacked_mean = cumsum(mean_count)) %>% ungroup() %>%
+    dplyr::group_by(Label, Sample, Type) %>%
+    dplyr::mutate(stacked_mean = ifelse(Type=="LF\nNo-plex", mean_count,stacked_mean))%>%
+    dplyr::mutate(
+      er_max = stacked_mean + se,
+      er_min = stacked_mean - se
+    ) %>%
+    dplyr::ungroup()
+  
+  df_text <- dat_summary %>%
+    dplyr::group_by(Type, Sample,Label) %>%
+    dplyr::summarise(
+      text_value = round(max(er_max) - max(se)),
+      text_pos = max(er_max) + 310
+    )
+  
+  
+  ggplot(dat_summary, aes(x = Type, y = mean_count, fill = Sample)) +
+    scale_x_discrete(limits = c("LF\nNo-plex","9-plexDIA", "9-plexDIA\n3-timePlex")) +
+    
+    
+    geom_bar(data = dat_summary %>% dplyr::filter(Type == "9-plexDIA\n3-timePlex"),
+             aes(x = Type, y = mean_count, fill = Sample), alpha=0.8,
+             stat = "identity", color = "black", width = 0.35, alpha = 1) +
+    
+    geom_bar(data = dat_summary %>% dplyr::filter(Type == "9-plexDIA"),
+             aes(x = Type, y = mean_count, fill = Sample), alpha=0.8,
+             stat = "identity", color = "black", width = 0.35, alpha = 1) +
+    
+    geom_bar(data = dat_summary %>% dplyr::filter(Type == "LF\nNo-plex"),
+             aes(x = Type, y = mean_count, fill = Sample), alpha=0.8,
+             stat = "identity", position = position_dodge(width = 1.17),
+             color = "black", width = 1, alpha = 1) +
+    
+    scale_y_continuous(labels = comma) +
+    
+    geom_errorbar(data = dat_summary %>% dplyr::filter(Type %in% c("9-plexDIA\n3-timePlex", "9-plexDIA")),
+                  aes(ymin = er_min, ymax = er_max),
+                  width = 0.18, size = 0.4) +
+    
+    geom_errorbar(data = dat_summary %>% dplyr::filter(Type == "LF\nNo-plex"),
+                  aes(ymin = er_min, ymax = er_max),
+                  width = 0.5, size = 0.4,
+                  position = position_dodge(1.17)) +
+    
+    scale_fill_manual(values = my_colors) +
+    theme_classic() +
+    
+    labs(y = "Protein data points / Run", x = "", fill = "Samples") +
+    
+    theme(axis.text.x = element_text(size = 14, color = "black", face = "bold"),
+          axis.text.y = element_text(size = 12),
+          axis.title.y = element_text(size = 16),
+          legend.text = element_text(size = 12),
+          legend.title = element_text(size = 12),
+          legend.position = c(0.16, 0.9),
+          legend.direction = "horizontal",
+          legend.spacing.x = unit(1.0, 'line')) +
+    
+    guides(fill = guide_legend(override.aes = list(alpha = 0.7),
+                               title = "Samples",
+                               label.position = "bottom",
+                               title.position = "top", title.vjust = 1, title.hjust = 0.5)) +
+    
+    geom_text(data = df_text %>% dplyr::filter(Type %in% c("9-plexDIA\n3-timePlex", "9-plexDIA")), 
+              aes(x = Type, y = text_pos, label = comma(text_value)),
+              col = 'black', size = 3) +
+    
+    geom_text(data = df_text %>% dplyr::filter(Type == "LF\nNo-plex"), 
+              aes(x = Type, y = text_pos, label = comma(text_value)),
+              col = 'black', size = 3,
+              width = 0.5, size = 0.4,
+              position = position_dodge(1.17))
+  
+  ggsave(paste0(extra,"_","Prot_coverage_","BestChannel_",use_best_channel,".pdf"),width=5.5,height=5.5)
+  
+  return(dat_counts)
+  
+}
+
+pD_jmod_maxlfq <- function(df, group.header="prot", id.header = "seqcharge", quantity.header = "quant_val", min_num_reps=2,minimum_b_count=2){
+  df <- df[df$Protein_Qvalue <= 0.01,]
+
+  df$last_aa <- str_sub(df$stripped_seq, -1)
+  
+  df <- df %>%
+    filter(
+      (last_aa == "K" & Qvalue < 0.2 & BestChannel_Qvalue < 0.01) |
+        (last_aa != "K" & Qvalue < 0.05 & BestChannel_Qvalue < 0.01)
+    )
+  
+  df <- df %>%
+    mutate(Type = case_when(
+      timePlex == TRUE & Label == "LF" ~ "tp",
+      timePlex == TRUE & Label != "LF" ~ "tp_pd",
+      timePlex == FALSE & Label != "LF" ~ "pd",
+      TRUE ~ "np"
+    ))
+  
+  df$bcount <- str_count(df$frag_names, "b")
+  df <- df %>%
+    filter(!(grepl("tag6", seq)) | (grepl("tag6", seq) & (!grepl("K", seq)) & bcount > (minimum_b_count - 1)))
+
+  protein.groups <- diann_maxlfq(df, group.header=paste0(group.header), id.header = paste0(id.header), quantity.header = paste0(quantity.header))
+  
+  protein.groups <- as.data.frame(protein.groups)  
+  protein.groups$prot <- row.names(protein.groups)
+  return(protein.groups)
+}
+
+
+pD_melt_jmod_MaxLFQ <- function(dat,meta_bulk_path,infer_sample=T){
+  pD_1 <- dat
+  pD_3_m <- melt(as.matrix(pD_1))
+  m <- fread(meta_bulk_path)
+  m$Column <- as.numeric(m$Column)-1
+  m$Run <- sub("_.*", "", m$Run)
+  
+  m <- m %>% dplyr::mutate("TP" = ifelse(timePlex==T,Column,
+                                         ifelse(Label=="LF","NoPlex","")))
+  m$run_chan <- paste0(m$Run, "_", m$TP,"_",m$Label)
+  m$batch <- paste0(m$Label,"_",m$Column)
+  m$run_timechannel <- paste0(m$Run,"_",m$Column)
+  
+  pD_3_m <- pD_3_m %>% left_join(m, by=c("Var2"="run_chan"))
+  pD_3_m <- pD_3_m %>% dplyr::rename("prot"="Var1", "run_chan"="Var2")
+  pD_3_m$norm_prot <- log2(as.numeric(pD_3_m$value))
+  
+  return(pD_3_m)
+}
+
+prot_normalizeQuant <- function(dat, quant_col="MS1_Int"){
+  
+  print(time)
+  #normalization using only HUMAN proteins
+  dat$value <- as.numeric(dat$value)
+  datH <- dat %>%
+    filter(!grepl("YEAST", prot)) %>%
+    group_by(run_chan) %>%
+    summarise(med_H = median(value, na.rm = TRUE), .groups = "drop")
+  
+  dat <- dat %>%
+    left_join(datH, by = "run_chan") %>%
+    mutate(med_norm = log2(.data[[quant_col]]) - log2(med_H)) %>%
+    group_by(prot) %>%
+    mutate(prot_mean = mean(.data[[quant_col]], na.rm = TRUE)) %>%
+    mutate(norm = med_norm - mean(med_norm, na.rm = TRUE)) %>%
+    ungroup() %>%
+    filter(!is.na(norm) & norm != 0 & is.finite(norm))
+  
+  dat$quant_val <- (2^dat$norm)*dat$prot_mean
+  return(dat)
+}
+
+
+Protein_level_quant <- function(normed_quant, grouper="prot", datatype = "protein",min_reps=2){
+
+  normed_quant <- normed_quant %>%
+    mutate(Type = case_when(
+      timePlex == TRUE & Label != "LF" ~ "tp_pd",
+      timePlex == FALSE & Label != "LF" ~ "pd",
+      TRUE ~ "np"
+    ))
+  
+  normed_quant$ProteinName <- normed_quant$prot
+  normed_quant <- normed_quant %>% dplyr::mutate("species" = ifelse(grepl("HUMAN",prot),"Human",
+                                                                    ifelse(grepl("YEAST",prot),"Yeast","remove"))) %>% filter(!grepl("remove",species))
+  
+  np <- normed_quant[normed_quant$Type=="np",]
+  pD <- normed_quant[normed_quant$Type=="pd",] %>% filter(Rep == 2)
+  tp_pd <- normed_quant[normed_quant$Type=="tp_pd",] %>% filter(Rep == 2)
+
+  joined <- rbind(np,tp_pd, pD)
+  
+  normed_quant_avg_ints <- joined %>% dplyr::group_by(Type, .data[[grouper]], Sample) %>%
+    dplyr::summarize("quant_avg" = mean(quant_val,na.rm=T)) %>% dplyr::rename("denom_sample"="Sample")
+  
+  human_medians <- joined %>%
+    dplyr::filter(species == "Human") %>%
+    dplyr::group_by(run_chan) %>%
+    dplyr::summarise(median_Human = median(norm, na.rm = TRUE), .groups = "drop") %>% ungroup()
+  
+  joined <- joined %>%
+    dplyr::left_join(human_medians, by = "run_chan") %>%  
+    dplyr::mutate(norm = norm-median_Human) %>%  
+    dplyr::select(-median_Human) 
+  
+  
+  joined_quant <- joined %>% group_by(Type, Sample,.data[[grouper]],species) %>%
+    dplyr::add_count() %>% dplyr::filter(n>(min_reps-1)) %>% #require atleast certain number of reps
+    dplyr::summarize(med_quant = median(norm,na.rm=T))
+  
+  
+  dynamic_column <- grouper  
+  
+  formula_str <- paste(dynamic_column, "species", sep = "+")
+  joined_quant_d <- dcast(
+    joined_quant, 
+    formula = as.formula(paste(formula_str, "~ Type+Sample")), 
+    value.var = "med_quant"
+  )
+
+  joined_quant_d$pd_JM <- joined_quant_d$pd_J-joined_quant_d$pd_M
+
+  joined_quant_d$tp_pd_JM <- joined_quant_d$tp_pd_J-joined_quant_d$tp_pd_M
+
+  joined_quant_d$np_JM <- joined_quant_d$np_J-joined_quant_d$np_M
+
+  joined_quant_m <- joined_quant_d %>% dplyr::select(.data[[grouper]],species, 
+                                                     pd_JM, tp_pd_JM, np_JM) %>% melt()
+  
+  human_medians <- joined_quant_m %>%
+    dplyr::filter(species == "Human") %>%
+    dplyr::group_by(variable) %>%
+    dplyr::summarise(median_Human = median(value, na.rm = TRUE), .groups = "drop") %>% dplyr::ungroup()
+  
+  joined_quant_m <- joined_quant_m %>%
+    dplyr::left_join(human_medians, by = "variable") %>%  
+    dplyr::mutate(value = value-median_Human) %>%  
+    dplyr::select(-median_Human) %>% na.omit()
+  
+  joined_quant_m <- joined_quant_m %>% 
+    dplyr::mutate(denom_sample = ifelse(grepl("J",variable),"J",
+                                        ifelse(grepl("M",variable),"M", "K")))
+  joined_quant_m$Type <- sub("_[^_]*$", "", joined_quant_m$variable)
+  
+  joined_quant_m <- joined_quant_m %>% dplyr::left_join(normed_quant_avg_ints, by =c("Type","denom_sample",paste0(grouper)))
+  
+  allcounts  <- joined_quant_m %>% dplyr::count(variable)
+  
+  
+  ##### AB
+  joined_AB <- joined_quant_m[grepl("JM", joined_quant_m$variable),]
+  
+  
+  counts_AB <- allcounts[grepl("JM",allcounts$variable),]
+  
+  int_AB <- joined_AB %>% na.omit() %>% dplyr::count(.data[[grouper]]) %>% dplyr::filter(n==max(n))
+  
+  df_int <- data.frame(variable = "Intersected", n=nrow(int_AB))
+  counts_AB <- rbind(counts_AB, df_int)
+  
+  
+  counts_AB$variable <- factor(counts_AB$variable, 
+                               levels=c("np_JM",
+                                        "pd_JM",
+                                        "tp_pd_JM",
+                                        "Intersected"))
+  
+  counts_AB_plot <- ggplot(counts_AB, aes(x=as.factor(variable), y=n, fill=variable)) + 
+    geom_bar(stat="identity", colour="black", alpha =0.7) +
+    geom_text(data=counts_AB, aes(x=as.factor(variable), y=n+30, label=n), col='black', size=4.5) +
+    theme_classic() + 
+    theme(
+      axis.text.y = element_text(size=12),
+      axis.title.y = element_text(size=14),
+      axis.ticks.x = element_blank(),
+      plot.subtitle = element_text(size = 12, hjust = 0.5),
+      plot.title = element_text(size = 13.5, hjust = 0.5, face="bold"),
+      legend.position = "none",
+      strip.text.x = element_text(size=12, face = "italic"),
+      legend.text = element_text(size=12))+
+    labs(x = "", y = "Protein Ratios (A/B)", fill = "") +
+    scale_fill_manual(values = c("#413c58", "#b6db8a", "#d87c7c","grey40"))
+  counts_AB_plot
+  
+  
+  joined_AB_int <- joined_AB %>% dplyr::filter(.data[[grouper]]%in%int_AB[[grouper]]) #%>% na.omit()
+  joined_AB_int$variable <- factor(joined_AB_int$variable, 
+                                   levels=c("np_JM",
+                                            "pd_JM",
+                                            "tp_pd_JM",
+                                            "Intersected"))
+  
+  medians <- joined_AB_int %>%
+    dplyr::group_by(species, variable) %>%
+    dplyr::summarize(median_value = median(value), .groups = "drop")
+  
+  denseplot <- ggplot(joined_AB_int, aes(fill=species, y=value)) +
+    facet_grid(~variable) +
+    geom_density(alpha=0.75) + 
+    geom_hline(data=medians, aes(yintercept=median_value), linetype="solid", color="black") + 
+    geom_hline(yintercept = -2, linetype="dashed", color="#e56730") +
+    geom_hline(yintercept = 0,linetype="dashed",color="#109abf") + 
+    labs(subtitle="")+
+    theme_bw() +
+    scale_fill_manual(values=c("#68aabc","#e08a6c"))+
+    theme(legend.position="none",panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank()) 
+  
+  quantplot_AB <- ggarrange(counts_AB_plot, denseplot,
+                            ncol = 2, nrow = 1,
+                            widths = c(0.4, 0.7))
+  quantplot_AB
+  ggsave(paste0("prot_level_3x9",datatype,".pdf"),width=6,height=4)
+  
+  df1 <- data.frame(type = c("1np","9pd","9pd_3tp"),
+                   plex = c(1, 9, 27))
+  
+  ggplot(df1, aes(x=type,y=plex,fill=type)) + geom_point(size=4,color="black",shape=21) +
+    theme_classic() +
+    theme(
+      axis.title.x = element_blank(),
+      axis.text.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      legend.position="none"
+    ) +
+  scale_fill_manual(values = c("#413c58", "#b6db8a", "#d87c7c"))
+  ggsave(paste0("plex",datatype,".pdf"),width=4.1,height=1.7)
+  
+}
+
+
+
+
+
