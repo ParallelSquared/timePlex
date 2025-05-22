@@ -1,4 +1,4 @@
-![Logo](timePlex_figure.png)
+![Logo](timePlex_schematic.png)
 
 ## Article: [Increasing mass spectrometry throughput using time-encoded sample multiplexing (Derks et al, 2025)](https://www.biorxiv.org/)
 
