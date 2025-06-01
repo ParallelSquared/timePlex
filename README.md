@@ -1,6 +1,6 @@
 ![Logo](timeplex_schematic.png)
 
-## Article: [Increasing mass spectrometry throughput using time-encoded sample multiplexing (Derks et al, 2025)](https://www.biorxiv.org/)
+## Article: [Increasing mass spectrometry throughput using time-encoded sample multiplexing (Derks et al, 2025)](https://www.biorxiv.org/content/10.1101/2025.05.22.655515v1)
 
  
 
@@ -31,7 +31,7 @@ Data:
 
 </h2>
 
-All raw and processed data from the [article](https://www.biorxiv.org/) are organized in this MassIVE repository: [MSV000097736](https://massive.ucsd.edu/ProteoSAFe/dataset.jsp?task=7193ea0d007741c680f22ec005718e2b).
+All raw and processed data from the [article](https://www.biorxiv.org/content/10.1101/2025.05.22.655515v1) are organized in this MassIVE repository: [MSV000097736](https://massive.ucsd.edu/ProteoSAFe/dataset.jsp?task=7193ea0d007741c680f22ec005718e2b).
 
  
 
