@@ -17,11 +17,11 @@ Methods:
 
 #### Bulk data:
 
-Proteomics methods: [plexDIA](https://scp.slavovlab.net/plexDIA) & [timePlex](https://www.parallelsq.org/technology-and-science/timePlex)<br>
+Proteomics methods: [plexDIA](https://scp.slavovlab.net/plexDIA) & [timePlex](https://www.parallelsq.org/timePlex)<br>
 
 #### Single-cell data:
 
-Proteomics methods: [plexDIA](https://scp.slavovlab.net/plexDIA) & [timePlex](https://www.parallelsq.org/technology-and-science/timePlex)<br>
+Proteomics methods: [plexDIA](https://scp.slavovlab.net/plexDIA) & [timePlex](https://www.parallelsq.org/timePlex)<br>
 
 Sample preparation method: [nPOP](https://scp.slavovlab.net/nPOP)<br>  
 
