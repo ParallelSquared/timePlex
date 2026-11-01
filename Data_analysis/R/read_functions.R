@@ -50,6 +50,23 @@ Jmod_read_folder <- function(folder_path, lib_fpath,distinct=F){
   return(df)
 }
 
+# Only the columns in `cols` (which must include is_decoy) from every run in one or more
+# JMod output folders; reads filtered_IDs.csv, or filtered_IDs.csv.gz for trimmed copies
+Jmod_read_folder_cols <- function(folder_paths, cols){
+  run_dirs <- unlist(lapply(folder_paths, function(p) file.path(p, list.files(p))))
+  data_list <- lapply(seq_along(run_dirs), function(i){
+    file_path <- file.path(run_dirs[i], c("filtered_IDs.csv", "filtered_IDs.csv.gz"))
+    file_path <- file_path[file.exists(file_path)][1]
+    if (is.na(file_path)) stop("No filtered_IDs.csv(.gz) in ", run_dirs[i])
+    data <- data.frame(fread(file_path, select = cols))
+    data <- data[data$is_decoy==F,]
+    data$Run <- str_extract(basename(run_dirs[i]), ".+?(?=_re|_\\d{14})")
+    print(paste0("Loaded ", i, "/", length(run_dirs), " files"))
+    data
+  })
+  do.call("rbind", data_list)
+}
+
 # ProteinName (for species) from a ProteinGroup -> ProteinName map, matched on the JMod protein column
 Jmod_add_ProteinName <- function(df, map_fpath){
   map <- fread(map_fpath, select = c("ProteinGroup", "ProteinName"))

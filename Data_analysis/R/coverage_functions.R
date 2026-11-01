@@ -750,6 +750,7 @@ prec_prot_counts <- function(dat_all_DualTP, runs=NULL,
   chan_q  <- 0.01   # Best_tP_specific_channelQvalue
   prec_q  <- 0.5      # Qvalue (set e.g. 0.5 to also cap run-level precursor q)... JMod outputs at Qvalue < 0.01 for LF no plex 
   n_plex  <- 9      # plexDIA channels per timePlex channel
+  n_tp    <- 3      # timePlex channels per run
   n_cols  <- 6      # LC columns (2 Sets x 3 timePlex channels); FWHM precursors must be in all
 
   if (!is.null(runs)) dat_all_DualTP <- dat_all_DualTP %>% dplyr::filter(Run %in% runs)
@@ -805,6 +806,36 @@ prec_prot_counts <- function(dat_all_DualTP, runs=NULL,
             plot.margin = margin(3, 3, 3, 3))
   }
 
+  ## ---- IDs per sample in each run: mean and standard deviation over its 27 samples (timePlex channel x mass tag) ----
+  ids_by_run <- dat_filt %>%
+    dplyr::group_by(Run, injection_index, Set, tP, tag) %>%
+    dplyr::summarise(Precursors = n_distinct(untag_prec),
+                     Proteins   = n_distinct(protein), .groups = "drop") %>%
+    pivot_longer(c(Precursors, Proteins), names_to = "level", values_to = "n") %>%
+    dplyr::group_by(Run, injection_index, Set, level) %>%
+    dplyr::summarise(n_samples = n(), sd = sd(n), n = mean(n), .groups = "drop")
+  if (any(ids_by_run$n_samples != n_tp * n_plex))
+    warning("Runs with fewer than ", n_tp * n_plex, " samples: ",
+            paste(unique(ids_by_run$Run[ids_by_run$n_samples != n_tp * n_plex]), collapse = ", "))
+  print(ids_by_run %>% dplyr::group_by(level) %>%
+          dplyr::summarise(runs = n(), mean = mean(n), min = min(n), max = max(n),
+                           median_sd = median(sd), .groups = "drop"))
+
+  ## ---- bar plots: d = precursors, e = proteins per sample by run ----
+  last_run <- max(ids_by_run$injection_index)
+  plot_run <- function(lvl) {
+    ggplot(dplyr::filter(ids_by_run, level == lvl), aes(injection_index, n, fill = Set)) +
+      geom_col(width = 0.75, alpha = 0.8) +
+      geom_errorbar(aes(ymin = n - sd, ymax = n + sd), width = 0.4, linewidth = 0.25) +
+      scale_x_continuous(breaks = c(1, seq(10, last_run - 1, 10), last_run),
+                         expand = expansion(add = 0.6)) +
+      scale_y_continuous(labels = scales::comma, expand = expansion(mult = c(0, 0.05))) +
+      scale_fill_manual(values = set_cols, name = NULL) +
+      labs(x = "Run order", y = paste("#", lvl, "/ sample")) +
+      paper_theme_box(grid = TRUE) +
+      theme(legend.position = "none", plot.margin = margin(3, 3, 3, 3))
+  }
+
   ## ---- FWHM: median per precursor per LC column, intersected across all columns ----
   fwhm_col <- dat_filt %>%
     dplyr::filter(!is.na(MS1_FWHM)) %>%
@@ -857,5 +888,9 @@ prec_prot_counts <- function(dat_all_DualTP, runs=NULL,
                                      file.path(out_dir, "ExtDataFig10b.pdf"), width = 2.6, height = 2.5),
                  ed10c = paper_panel(plot_bar("Proteins", legend = FALSE),
                                      file.path(out_dir, "ExtDataFig10c.pdf"), width = 2.49, height = 2.5),
-                 ids = ids_avg, fwhm = med_fwhm))
+                 ed10d = paper_panel(plot_run("Precursors"),
+                                     file.path(out_dir, "ExtDataFig10d.pdf"), width = 3.545, height = 1.9),
+                 ed10e = paper_panel(plot_run("Proteins"),
+                                     file.path(out_dir, "ExtDataFig10e.pdf"), width = 3.545, height = 1.9),
+                 ids = ids_avg, ids_by_run = ids_by_run, fwhm = med_fwhm))
 }

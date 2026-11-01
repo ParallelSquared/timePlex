@@ -2,21 +2,11 @@
 # Assembled manuscript figures: code-made panels placed at print size, with
 # blank space (and the panel letter) left for schematics, tables and photos
 ################################################################################
-# Figures are laid out at the journal's double-column width (180 mm = 7.09 in).
-# Positions are in inches from the top-left corner of the figure. Each panel
-# comes from paper_panel(), so it is the same object as its own PDF.
 
-
-## ---- Generic placement --------------------------------------------------------
-
-# One placed panel: `panel` from paper_panel() (NULL leaves the space empty),
-# its top-left corner (x, y) and the panel letter's position
 paper_place <- function(panel, x, y, letter = NULL, lx = x, ly = y){
   list(panel = panel, x = x, y = y, letter = letter, lx = lx, ly = ly)
 }
 
-# Items can be named (list(a = paper_place(...))) so that decorate(), run after
-# the panels are drawn, can find their plot panels with paper_panel_boxes(name)
 paper_assemble <- function(file, width, height, items, decorate = NULL){
   paper_figure(file)                                  # panel letters at the figure's size
   # panels come from other targets; ggtext labels (Figs. 4c-e v2, 5g) are sized
@@ -266,9 +256,13 @@ paper_ed5 <- function(a, b, c, file = "Figs/ExtDataFig5/ExtDataFig5_full.pdf"){
     paper_place(c, a$width + b$width, 0, "c", a$width + b$width, 0)))
 }
 
-paper_ed10 <- function(a, b, c, file = "Figs/ExtDataFig10/ExtDataFig10_full.pdf"){
-  paper_assemble(file, width = 7.09, height = max(a$height, b$height, c$height), items = list(
+# a-c on top; d and e (IDs per sample by run) side by side underneath
+paper_ed10 <- function(a, b, c, d, e, file = "Figs/ExtDataFig10/ExtDataFig10_full.pdf"){
+  top <- max(a$height, b$height, c$height)
+  paper_assemble(file, width = 7.09, height = top + max(d$height, e$height), items = list(
     paper_place(a, 0, 0,                 "a", 0, 0),
     paper_place(b, a$width, 0,           "b", a$width, 0),
-    paper_place(c, a$width + b$width, 0, "c", a$width + b$width, 0)))
+    paper_place(c, a$width + b$width, 0, "c", a$width + b$width, 0),
+    paper_place(d, 0, top,               "d", 0, top),
+    paper_place(e, d$width, top,         "e", d$width, top)))
 }
