@@ -59,6 +59,8 @@ meta_SC <- "timeplex_SCmeta_allRuns_08262026.tsv"
 
 ## ---- fig6_dual_timePlex_1200SPD.R --------------------------------------------
 astralDualTP_fpath <- file.path(new_search, "Astral_1300SPD")
+## the other runs of the series, trimmed to the ED Fig. 10 columns
+astralDualTP_middle_fpath <- file.path(new_search, "Astral_1300SPD_middle")
 astralDualTP_fpath_raw <- "/Volumes/Lab/JD/Raw_data/timePlex_revisions/Astral_1300SPD_raw"
 lib_DualTP <- "/Users/jasonderks/Benchmarking/58kPrecursor_HY_lib_PSMTag_07152026.tsv"
 astralDualTP_samplemap <- data.frame(plex_channel = seq(0, 16, 2),
